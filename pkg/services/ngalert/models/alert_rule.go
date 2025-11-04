@@ -367,6 +367,12 @@ type AlertRule struct {
 	// If nil, alerts resolve after 2 missing evaluation intervals
 	// (i.e., resolution occurs during the second evaluation where data is absent).
 	MissingSeriesEvalsToResolve *int64
+	// ErrorEvalThreshold specifies the number of consecutive error evaluations
+	// required before transitioning to an error state and triggering notifications.
+	// This allows tolerating transient datasource errors without false alerts.
+	// If nil or 1, errors trigger immediately (default behavior for backward compatibility).
+	// If > 1, requires N consecutive evaluation failures before alerting.
+	ErrorEvalThreshold *int64
 }
 
 type AlertRuleMetadata struct {

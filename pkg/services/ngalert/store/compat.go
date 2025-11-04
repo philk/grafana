@@ -36,6 +36,7 @@ func alertRuleToModelsAlertRule(ar alertRule, l log.Logger) (models.AlertRule, e
 		KeepFiringFor:               ar.KeepFiringFor,
 		IsPaused:                    ar.IsPaused,
 		MissingSeriesEvalsToResolve: ar.MissingSeriesEvalsToResolve,
+		ErrorEvalThreshold:          ar.ErrorEvalThreshold,
 	}
 
 	if ar.RuleGroup == "" {
@@ -137,6 +138,7 @@ func alertRuleFromModelsAlertRule(ar models.AlertRule) (alertRule, error) {
 		KeepFiringFor:               ar.KeepFiringFor,
 		IsPaused:                    ar.IsPaused,
 		MissingSeriesEvalsToResolve: ar.MissingSeriesEvalsToResolve,
+		ErrorEvalThreshold:          ar.ErrorEvalThreshold,
 	}
 
 	if models.IsNoGroupRuleGroup(ar.RuleGroup) {
@@ -225,6 +227,7 @@ func alertRuleToAlertRuleVersion(rule alertRule) alertRuleVersion {
 		NotificationSettings:        rule.NotificationSettings,
 		Metadata:                    rule.Metadata,
 		MissingSeriesEvalsToResolve: rule.MissingSeriesEvalsToResolve,
+		ErrorEvalThreshold:          rule.ErrorEvalThreshold,
 	}
 }
 
@@ -259,5 +262,6 @@ func alertRuleVersionToAlertRule(version alertRuleVersion) alertRule {
 		NotificationSettings:        version.NotificationSettings,
 		Metadata:                    version.Metadata,
 		MissingSeriesEvalsToResolve: version.MissingSeriesEvalsToResolve,
+		ErrorEvalThreshold:          version.ErrorEvalThreshold,
 	}
 }

@@ -5595,3 +5595,146 @@ func setCacheID(s *State) *State {
 
 	return s
 }
+
+func TestErrorEvalThreshold(t *testing.T) {
+	ctx := context.Background()
+	logger := logtest.NewTestLogger()
+
+	testCases := []struct {
+		name               string
+		errorEvalThreshold *int64
+		consecutiveErrors  int
+		expectedState      eval.State
+		expectedErrorCount int
+	}{
+		{
+			name:               "nil threshold - error triggers immediately",
+			errorEvalThreshold: nil,
+			consecutiveErrors:  1,
+			expectedState:      eval.Error,
+			expectedErrorCount: 1,
+		},
+		{
+			name:               "threshold 1 - error triggers immediately",
+			errorEvalThreshold: ptr(int64(1)),
+			consecutiveErrors:  1,
+			expectedState:      eval.Error,
+			expectedErrorCount: 1,
+		},
+		{
+			name:               "threshold 3 - first error keeps last state",
+			errorEvalThreshold: ptr(int64(3)),
+			consecutiveErrors:  1,
+			expectedState:      eval.Normal,
+			expectedErrorCount: 1,
+		},
+		{
+			name:               "threshold 3 - second error keeps last state",
+			errorEvalThreshold: ptr(int64(3)),
+			consecutiveErrors:  2,
+			expectedState:      eval.Normal,
+			expectedErrorCount: 2,
+		},
+		{
+			name:               "threshold 3 - third error triggers error state",
+			errorEvalThreshold: ptr(int64(3)),
+			consecutiveErrors:  3,
+			expectedState:      eval.Error,
+			expectedErrorCount: 3,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rule := &ngmodels.AlertRule{
+				OrgID:              1,
+				UID:                util.GenerateShortUID(),
+				Title:              "test-rule",
+				IntervalSeconds:    60,
+				ExecErrState:       ngmodels.ErrorErrState,
+				ErrorEvalThreshold: tc.errorEvalThreshold,
+			}
+
+			state := &State{
+				OrgID:                 1,
+				AlertRuleUID:          rule.UID,
+				State:                 eval.Normal,
+				Labels:                data.Labels{},
+				Annotations:           map[string]string{},
+				ConsecutiveErrorCount: 0,
+			}
+
+			// Simulate consecutive errors
+			testError := errors.New("test datasource error")
+			result := eval.Result{
+				State:       eval.Error,
+				Error:       testError,
+				EvaluatedAt: time.Now(),
+			}
+
+			for i := 0; i < tc.consecutiveErrors; i++ {
+				resultError(state, rule, result, logger)
+			}
+
+			assert.Equal(t, tc.expectedState, state.State, "state should match expected")
+			assert.Equal(t, tc.expectedErrorCount, state.ConsecutiveErrorCount, "error count should match")
+		})
+	}
+}
+
+func TestConsecutiveErrorCountReset(t *testing.T) {
+	ctx := context.Background()
+	logger := logtest.NewTestLogger()
+
+	threshold := ptr(int64(3))
+	rule := &ngmodels.AlertRule{
+		OrgID:              1,
+		UID:                util.GenerateShortUID(),
+		Title:              "test-rule",
+		IntervalSeconds:    60,
+		ExecErrState:       ngmodels.ErrorErrState,
+		ErrorEvalThreshold: threshold,
+	}
+
+	state := &State{
+		OrgID:                 1,
+		AlertRuleUID:          rule.UID,
+		State:                 eval.Normal,
+		Labels:                data.Labels{},
+		Annotations:           map[string]string{},
+		ConsecutiveErrorCount: 0,
+	}
+
+	// Two consecutive errors
+	errorResult := eval.Result{
+		State:       eval.Error,
+		Error:       errors.New("test error"),
+		EvaluatedAt: time.Now(),
+	}
+
+	resultError(state, rule, errorResult, logger)
+	assert.Equal(t, 1, state.ConsecutiveErrorCount)
+	assert.Equal(t, eval.Normal, state.State)
+
+	resultError(state, rule, errorResult, logger)
+	assert.Equal(t, 2, state.ConsecutiveErrorCount)
+	assert.Equal(t, eval.Normal, state.State)
+
+	// Successful evaluation should reset counter
+	normalResult := eval.Result{
+		State:       eval.Normal,
+		EvaluatedAt: time.Now(),
+	}
+	resultNormal(state, rule, normalResult, logger, "")
+
+	assert.Equal(t, 0, state.ConsecutiveErrorCount, "error count should be reset")
+	assert.Equal(t, eval.Normal, state.State)
+
+	// Error again - should start counting from 0
+	resultError(state, rule, errorResult, logger)
+	assert.Equal(t, 1, state.ConsecutiveErrorCount)
+}
+
+func ptr[T any](v T) *T {
+	return &v
+}

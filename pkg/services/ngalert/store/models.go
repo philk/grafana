@@ -31,6 +31,7 @@ type alertRule struct {
 	NotificationSettings        string `xorm:"notification_settings"`
 	Metadata                    string `xorm:"metadata"`
 	MissingSeriesEvalsToResolve *int64 `xorm:"missing_series_evals_to_resolve"`
+	ErrorEvalThreshold          *int64 `xorm:"error_eval_threshold"`
 }
 
 func (a alertRule) TableName() string {
@@ -69,6 +70,7 @@ type alertRuleVersion struct {
 	NotificationSettings        string `xorm:"notification_settings"`
 	Metadata                    string `xorm:"metadata"`
 	MissingSeriesEvalsToResolve *int64 `xorm:"missing_series_evals_to_resolve"`
+	ErrorEvalThreshold          *int64 `xorm:"error_eval_threshold"`
 }
 
 // EqualSpec compares two alertRuleVersion objects for equality based on their specifications and returns true if they match.
@@ -92,7 +94,8 @@ func (a alertRuleVersion) EqualSpec(b alertRuleVersion) bool {
 		a.IsPaused == b.IsPaused &&
 		a.NotificationSettings == b.NotificationSettings &&
 		a.Metadata == b.Metadata &&
-		compareInt64Pointer(a.MissingSeriesEvalsToResolve, b.MissingSeriesEvalsToResolve)
+		compareInt64Pointer(a.MissingSeriesEvalsToResolve, b.MissingSeriesEvalsToResolve) &&
+		compareInt64Pointer(a.ErrorEvalThreshold, b.ErrorEvalThreshold)
 }
 
 func compareInt64Pointer(a, b *int64) bool {

@@ -175,6 +175,10 @@ type ProvisionedAlertRule struct {
 	Record *Record `json:"record"`
 	// example: 2
 	MissingSeriesEvalsToResolve *int64 `json:"missingSeriesEvalsToResolve,omitempty"`
+	// Specifies the number of consecutive error evaluations required before alerting.
+	// If nil or 1, errors trigger immediately (default). If > 1, requires N consecutive failures.
+	// example: 3
+	ErrorEvalThreshold *int64 `json:"errorEvalThreshold,omitempty"`
 }
 
 // swagger:route GET /v1/provisioning/folder/{FolderUID}/rule-groups/{Group} provisioning stable RouteGetAlertRuleGroup
@@ -285,6 +289,7 @@ type AlertRuleExport struct {
 	NotificationSettings        *AlertRuleNotificationSettingsExport `json:"notification_settings,omitempty" yaml:"notification_settings,omitempty" hcl:"notification_settings,block"`
 	Record                      *AlertRuleRecordExport               `json:"record,omitempty" yaml:"record,omitempty" hcl:"record,block"`
 	MissingSeriesEvalsToResolve *int64                               `json:"missing_series_evals_to_resolve,omitempty" yaml:"missing_series_evals_to_resolve,omitempty" hcl:"missing_series_evals_to_resolve"`
+	ErrorEvalThreshold          *int64                               `json:"error_eval_threshold,omitempty" yaml:"error_eval_threshold,omitempty" hcl:"error_eval_threshold"`
 }
 
 // AlertQueryExport is the provisioned export of models.AlertQuery.

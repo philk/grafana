@@ -79,6 +79,10 @@ type State struct {
 	LastEvaluationString string
 	LastEvaluationTime   time.Time
 	EvaluationDuration   time.Duration
+	// ConsecutiveErrorCount tracks the number of consecutive error evaluations.
+	// This is used with ErrorEvalThreshold to tolerate transient errors.
+	// Reset to 0 when evaluation succeeds.
+	ConsecutiveErrorCount int
 }
 
 func newState(ctx context.Context, log log.Logger, alertRule *models.AlertRule, result eval.Result, extraLabels data.Labels, externalURL *url.URL) *State {
@@ -119,26 +123,27 @@ func (a *State) Copy() *State {
 	labelsCopy := make(data.Labels, len(a.Labels))
 	maps.Copy(labelsCopy, a.Labels)
 	return &State{
-		OrgID:                a.OrgID,
-		AlertRuleUID:         a.AlertRuleUID,
-		CacheID:              a.CacheID,
-		State:                a.State,
-		StateReason:          a.StateReason,
-		ResultFingerprint:    a.ResultFingerprint,
-		LatestResult:         a.LatestResult,
-		Error:                a.Error,
-		Image:                a.Image,
-		Annotations:          annotationsCopy,
-		Labels:               labelsCopy,
-		Values:               a.Values,
-		StartsAt:             a.StartsAt,
-		EndsAt:               a.EndsAt,
-		FiredAt:              a.FiredAt,
-		ResolvedAt:           a.ResolvedAt,
-		LastSentAt:           a.LastSentAt,
-		LastEvaluationString: a.LastEvaluationString,
-		LastEvaluationTime:   a.LastEvaluationTime,
-		EvaluationDuration:   a.EvaluationDuration,
+		OrgID:                 a.OrgID,
+		AlertRuleUID:          a.AlertRuleUID,
+		CacheID:               a.CacheID,
+		State:                 a.State,
+		StateReason:           a.StateReason,
+		ResultFingerprint:     a.ResultFingerprint,
+		LatestResult:          a.LatestResult,
+		Error:                 a.Error,
+		Image:                 a.Image,
+		Annotations:           annotationsCopy,
+		Labels:                labelsCopy,
+		Values:                a.Values,
+		StartsAt:              a.StartsAt,
+		EndsAt:                a.EndsAt,
+		FiredAt:               a.FiredAt,
+		ResolvedAt:            a.ResolvedAt,
+		LastSentAt:            a.LastSentAt,
+		LastEvaluationString:  a.LastEvaluationString,
+		LastEvaluationTime:    a.LastEvaluationTime,
+		EvaluationDuration:    a.EvaluationDuration,
+		ConsecutiveErrorCount: a.ConsecutiveErrorCount,
 	}
 }
 
@@ -342,6 +347,9 @@ func NewEvaluationValues(m map[string]eval.NumberValueCapture) map[string]float6
 }
 
 func resultNormal(state *State, rule *models.AlertRule, result eval.Result, logger log.Logger, reason string) {
+	// Reset consecutive error count on successful evaluation
+	state.ConsecutiveErrorCount = 0
+
 	switch {
 	case state.State == eval.Normal:
 		logger.Debug("Keeping state", "state", state.State)
@@ -402,6 +410,9 @@ func resultNormal(state *State, rule *models.AlertRule, result eval.Result, logg
 }
 
 func resultAlerting(state *State, rule *models.AlertRule, result eval.Result, logger log.Logger, reason string) {
+	// Reset consecutive error count on successful evaluation
+	state.ConsecutiveErrorCount = 0
+
 	switch state.State {
 	case eval.Alerting:
 		prevEndsAt := state.EndsAt
@@ -463,6 +474,29 @@ func resultAlerting(state *State, rule *models.AlertRule, result eval.Result, lo
 func resultError(state *State, rule *models.AlertRule, result eval.Result, logger log.Logger) {
 	handlerStr := "resultError"
 
+	// Increment consecutive error count
+	state.ConsecutiveErrorCount++
+
+	// Get error threshold (default to 1 for backward compatibility)
+	threshold := int64(1)
+	if rule.ErrorEvalThreshold != nil && *rule.ErrorEvalThreshold > 0 {
+		threshold = *rule.ErrorEvalThreshold
+	}
+
+	// Check if we've reached the threshold to trigger error handling
+	thresholdReached := int64(state.ConsecutiveErrorCount) >= threshold
+
+	logger = logger.New("consecutive_errors", state.ConsecutiveErrorCount, "error_threshold", threshold, "threshold_reached", thresholdReached)
+
+	// If threshold not reached, keep last state but track the error
+	if !thresholdReached {
+		logger.Debug("Error threshold not reached, keeping last state", "previous_handler", handlerStr)
+		resultKeepLast(state, rule, result, logger)
+		state.addErrorInfoToAnnotations(result.Error, rule)
+		return
+	}
+
+	// Threshold reached, proceed with configured error handling
 	switch rule.ExecErrState {
 	case models.AlertingErrState:
 		logger.Debug("Execution error state is Alerting", "handler", "resultAlerting", "previous_handler", handlerStr)
@@ -484,7 +518,7 @@ func resultError(state *State, rule *models.AlertRule, result eval.Result, logge
 				state.EndsAt)
 		} else {
 			nextEndsAt := nextEndsTime(rule.IntervalSeconds, result.EvaluatedAt)
-			// This is the first occurrence of an error
+			// This is the first occurrence of an error (after reaching threshold)
 			logger.Debug("Changing state",
 				"previous_state",
 				state.State,
