@@ -371,6 +371,77 @@ export function GrafanaEvaluationBehaviorStep({
                 />
               </Field>
               <Field
+                label={t('alerting.alert.error-eval-threshold', 'Error evaluation threshold')}
+                description={t(
+                  'alerting.alert.description-error-eval-threshold',
+                  'The number of consecutive error evaluations required before triggering the configured error handling behavior. This helps tolerate transient datasource connection issues. Defaults to 1 (immediate) if empty.'
+                )}
+                invalid={!!errors.errorEvalThreshold?.message}
+                error={errors.errorEvalThreshold?.message}
+                className={styles.inlineField}
+                htmlFor="error-eval-threshold"
+              >
+                <Stack direction="row" gap={0.5} alignItems="center">
+                  <Input
+                    placeholder={t(
+                      'alerting.grafana-evaluation-behavior-step.error-eval-threshold-placeholder',
+                      'Default: 1'
+                    )}
+                    id="error-eval-threshold"
+                    {...register('errorEvalThreshold', {
+                      pattern: {
+                        value: /^\d+$/,
+                        message: t(
+                          'alerting.grafana-evaluation-behavior-step.message.must-be-a-positive-integer',
+                          'Must be a positive integer.'
+                        ),
+                      },
+                      validate: (value) => {
+                        if (!value) return true;
+                        const num = parseInt(value, 10);
+                        return num >= 1 || t(
+                          'alerting.grafana-evaluation-behavior-step.message.must-be-at-least-one',
+                          'Must be at least 1.'
+                        );
+                      },
+                    })}
+                    width={21}
+                  />
+                  <NeedHelpInfo
+                    contentText={
+                      <>
+                        <p>
+                          {t(
+                            'alerting.alert-error-eval-threshold.help-info.text1',
+                            'This setting defines how many consecutive evaluation failures are required before the configured error handling behavior is triggered.'
+                          )}
+                        </p>
+                        <p>
+                          {t(
+                            'alerting.alert-error-eval-threshold.help-info.text2',
+                            'For example, setting this to 3 means that datasource errors must occur in 3 consecutive evaluations before an error alert is sent. This helps prevent false alerts from brief, transient connection issues.'
+                          )}
+                        </p>
+                        <p>
+                          {t(
+                            'alerting.alert-error-eval-threshold.help-info.text3',
+                            'When an evaluation succeeds, the counter resets to 0. Defaults to 1 (immediate error triggering) if empty.'
+                          )}
+                        </p>
+                      </>
+                    }
+                    externalLink={
+                      'https://grafana.com/docs/grafana/latest/alerting/fundamentals/alert-rule-evaluation/'
+                    }
+                    linkText={t(
+                      'alerting.alert-error-eval-threshold.help-info.link-text',
+                      `Read more about error handling`
+                    )}
+                    title={t('alerting.alert-error-eval-threshold.help-info.title', 'Error evaluation threshold')}
+                  />
+                </Stack>
+              </Field>
+              <Field
                 label={t('alerting.alert.missing-series-resolve', 'Missing series evaluations to resolve')}
                 description={t(
                   'alerting.alert.description-missing-series-evaluations',

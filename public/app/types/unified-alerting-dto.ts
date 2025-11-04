@@ -280,6 +280,7 @@ export interface PostableGrafanaRuleDefinition {
   };
   intervalSeconds?: number;
   missing_series_evals_to_resolve?: number;
+  error_eval_threshold?: number;
 }
 export interface GrafanaRuleDefinition extends PostableGrafanaRuleDefinition {
   id?: string;

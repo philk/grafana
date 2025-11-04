@@ -154,6 +154,7 @@ export function formValuesToRulerGrafanaRuleDTO(values: RuleFormValues): Postabl
     metric,
     targetDatasourceUid,
     missingSeriesEvalsToResolve,
+    errorEvalThreshold,
   } = values;
   if (!condition) {
     throw new Error('You cannot create an alert rule without specifying the alert condition');
@@ -186,6 +187,10 @@ export function formValuesToRulerGrafanaRuleDTO(values: RuleFormValues): Postabl
         missing_series_evals_to_resolve: missingSeriesEvalsToResolve
           ? Number(missingSeriesEvalsToResolve)
           : // API uses 0 value to reset, as `missing_series_evals_to_resolve` cannot be 0
+            0,
+        error_eval_threshold: errorEvalThreshold
+          ? Number(errorEvalThreshold)
+          : // API uses 0 value to reset, as `error_eval_threshold` cannot be 0
             0,
       },
       annotations,
@@ -328,6 +333,7 @@ export function rulerRuleToFormValues(ruleWithLocation: RuleWithLocation): RuleF
           editorSettings: getEditorSettingsFromDTO(ga),
 
           missingSeriesEvalsToResolve: ga.missing_series_evals_to_resolve,
+          errorEvalThreshold: ga.error_eval_threshold,
         };
       } else {
         throw new Error('Unexpected type of rule for grafana rules source');

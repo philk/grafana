@@ -85,6 +85,12 @@ export const Details = ({ rule }: DetailsProps) => {
       ? String(rule.rulerRule.grafana_alert.missing_series_evals_to_resolve)
       : undefined;
 
+  const errorEvalThreshold =
+    rulerRuleType.grafana.rule(rule.rulerRule) &&
+    !isUndefined(rule.rulerRule.grafana_alert.error_eval_threshold)
+      ? String(rule.rulerRule.grafana_alert.error_eval_threshold)
+      : undefined;
+
   const pausedIcon = (
     <Stack>
       <Text color="warning">
@@ -171,6 +177,17 @@ export const Details = ({ rule }: DetailsProps) => {
                 tooltipValue={t(
                   'alerting.alert.description-missing-series-evaluations',
                   'The number of consecutive evaluation intervals a dimension must be missing before the alert instance becomes stale, and is then automatically resolved and evicted. Defaults to 2 if empty.'
+                )}
+              />
+            )}
+            {errorEvalThreshold && (
+              <DetailText
+                id="error-eval-threshold"
+                label={t('alerting.alert.error-eval-threshold', 'Error evaluation threshold')}
+                value={errorEvalThreshold}
+                tooltipValue={t(
+                  'alerting.alert.description-error-eval-threshold',
+                  'The number of consecutive error evaluations required before triggering the configured error handling behavior. This helps tolerate transient datasource connection issues. Defaults to 1 (immediate) if empty.'
                 )}
               />
             )}
